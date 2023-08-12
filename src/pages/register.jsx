@@ -1,20 +1,55 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useContext, useState } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../config/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { AuthContext } from "../auth-context";
 
 function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { currentUser } = useContext(AuthContext);
 
   const navigate = useNavigate();
 
   const registerUser = async (ev) => {
     ev.preventDefault();
     try {
+      await createUserWithEmailAndPassword(auth, email, password)
+        .then(async (userCredential) => {
+          // Signed in
+          const user = userCredential.user;
+
+          const data = {
+            uid: user.uid,
+            displayName: name,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            phoneNumber: user.phoneNumber,
+            photoURL: user.photoURL,
+            createdAt: user.reloadUserInfo.createdAt,
+            provider: "password",
+            timeStamp: serverTimestamp(),
+          };
+
+          addDoc(collection(db, "users"), data);
+          // await setDoc(doc(db, "users", user.uid), data);
+          navigate("/login");
+        })
+        .catch((error) => {
+          const errorCode = error.code;
+          const errorMessage = error.message;
+          console.log(errorCode, errorMessage);
+        });
     } catch (e) {
       console.log(e.message);
     }
   };
+
+  if (currentUser) {
+    return <Navigate replace to="/profile" />;
+  }
 
   return (
     <>

@@ -1,19 +1,73 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useContext, useState } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { auth, db } from "../config/firebase";
+import { addDoc, collection, setDoc } from "firebase/firestore";
+import {
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from "firebase/auth";
+import { AuthContext } from "../auth-context";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { currentUser } = useContext(AuthContext);
 
   const navigate = useNavigate();
 
   const loginUser = async (ev) => {
     ev.preventDefault();
     try {
+      await signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          // Signed in
+          const user = userCredential.user;
+          console.log(userCredential);
+          navigate("/profile");
+        })
+        .catch((error) => {
+          const errorCode = error.code;
+          const errorMessage = error.message;
+          console.log(errorCode, errorMessage);
+        });
     } catch (e) {
       console.log(e.message);
     }
   };
+
+  const loginGoogle = (ev) => {
+    ev.preventDefault();
+    try {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider)
+        .then((response) => {
+          const user = response.user;
+          const data = {
+            uid: user.uid,
+            displayName: user.displayName,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            phoneNumber: user.phoneNumber,
+            photoURL: user.photoURL,
+            createdAt: user.reloadUserInfo.createdAt,
+            provider: response.providerId,
+          };
+
+          addDoc(collection(db, "users"), data);
+          // setDoc(collection(db, "users", user.uid), data);
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    } catch (e) {
+      console.log(e.message);
+    }
+  };
+
+  if (currentUser) {
+    return <Navigate replace to="/profile" />;
+  }
 
   return (
     <>
@@ -52,6 +106,8 @@ function Login() {
           Don’t have an account yet? <Link to={"/register"}>Sign up</Link>
         </p>
       </form>
+
+      <button onClick={loginGoogle}>Google</button>
     </>
   );
 }
